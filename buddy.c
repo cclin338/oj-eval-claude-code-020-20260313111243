@@ -15,6 +15,7 @@ typedef struct free_node {
 static void *base_addr = NULL;
 static int total_pages = 0;
 static free_node_t *free_lists[MAX_RANK + 1]; // free_lists[1] to free_lists[16]
+static int free_counts[MAX_RANK + 1]; // Count of free blocks at each rank
 static char *alloc_rank; // Track the rank of each allocated block (0 = free)
 static char *block_rank; // Track the rank of each block in free list
 
@@ -54,6 +55,7 @@ static inline void add_to_free_list(int idx, int rank) {
     }
     free_lists[rank] = node;
     block_rank[idx] = rank;
+    free_counts[rank]++;
 }
 
 // Remove block from free list
@@ -71,6 +73,7 @@ static inline void remove_from_free_list(int idx, int rank) {
     }
 
     block_rank[idx] = 0;
+    free_counts[rank]--;
 }
 
 // Initialize the buddy system
@@ -78,9 +81,10 @@ int init_page(void *p, int pgcount) {
     base_addr = p;
     total_pages = pgcount;
 
-    // Clear free lists
+    // Clear free lists and counts
     for (int i = 0; i <= MAX_RANK; i++) {
         free_lists[i] = NULL;
+        free_counts[i] = 0;
     }
 
     // Allocate arrays
@@ -232,12 +236,5 @@ int query_page_counts(int rank) {
         return -EINVAL;
     }
 
-    int count = 0;
-    free_node_t *curr = free_lists[rank];
-    while (curr != NULL) {
-        count++;
-        curr = curr->next;
-    }
-
-    return count;
+    return free_counts[rank];
 }
